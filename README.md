@@ -1,4 +1,4 @@
-# STATUS : DEVELOPING
+# STATUS : DEVELOPING ... v1.1.0
 
 # EasyTechDBManager
 
@@ -35,49 +35,33 @@ POST /api/v1/db/create-database
 }
 ```
 
-#### 2. Insert Data
+#### 2. Insert Document
 ```http
-POST /api/v1/db/insert-data
+POST /api/v1/db/insert-document
 ```
 **Request Body:**
 ```json
 {
   "databaseName": "your_database_name",
   "collectionName": "your_collection_name",
-  "data": { "key": "value" }
+  "document": { "key": "value" }
 }
 ```
 **Response:**
 ```json
 {
   "success": true,
-  "message": "Data inserted successfully."
+  "message": "Document inserted successfully.",
+  "response": {
+    "success": true,
+    "insertedId": "the_inserted_document_id"
+  }
 }
 ```
 
-#### 3. Fetch Data
+#### 3. Fetch Documents
 ```http
-GET /api/v1/db/fetch-data
-```
-**Request Params:**
-```json
-{
-  "databaseName": "your_database_name",
-  "collectionName": "your_collection_name",
-  "query": { "key": "value" }
-}
-```
-**Response:**
-```json
-{
-  "success": true,
-  "data": [ ... ]
-}
-```
-
-#### 4. Update Data
-```http
-PUT /api/v1/db/update-data
+POST /api/v1/db/fetch-documents
 ```
 **Request Body:**
 ```json
@@ -85,6 +69,28 @@ PUT /api/v1/db/update-data
   "databaseName": "your_database_name",
   "collectionName": "your_collection_name",
   "query": { "key": "value" },
+  "limit": 10,
+  "offset": 0
+}
+```
+**Response:**
+```json
+{
+  "success": true,
+  "documents": [ ... ]
+}
+```
+
+#### 4. Update Document
+```http
+POST /api/v1/db/update-document
+```
+**Request Body:**
+```json
+{
+  "databaseName": "your_database_name",
+  "collectionName": "your_collection_name",
+  "filter": { "key": "value" },
   "update": { "key": "new_value" }
 }
 ```
@@ -92,33 +98,33 @@ PUT /api/v1/db/update-data
 ```json
 {
   "success": true,
-  "message": "Data updated successfully."
+  "message": "Document updated successfully."
 }
 ```
 
-#### 5. Delete Data
+#### 5. Delete Document
 ```http
-DELETE /api/v1/db/delete-data
+POST /api/v1/db/delete-document
 ```
 **Request Body:**
 ```json
 {
   "databaseName": "your_database_name",
   "collectionName": "your_collection_name",
-  "query": { "key": "value" }
+  "filter": { "key": "value" }
 }
 ```
 **Response:**
 ```json
 {
   "success": true,
-  "message": "Data deleted successfully."
+  "message": "Document deleted successfully."
 }
 ```
 
 #### 6. Drop Collection
 ```http
-DELETE /api/v1/db/drop-collection
+POST /api/v1/db/drop-collection
 ```
 **Request Body:**
 ```json
@@ -132,24 +138,6 @@ DELETE /api/v1/db/drop-collection
 {
   "success": true,
   "message": "Collection dropped successfully."
-}
-```
-
-#### 7. Drop Database
-```http
-DELETE /api/v1/db/drop-database
-```
-**Request Body:**
-```json
-{
-  "databaseName": "your_database_name"
-}
-```
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Database dropped successfully."
 }
 ```
 
@@ -170,9 +158,8 @@ We welcome contributions from the community! If you'd like to contribute, follow
 This project is licensed under the MIT License.
 
 ## Contact
-For support and inquiries, contact us at support@easytechinnovate.com.
+For support and inquiries, contact us at mdashsharma95@gmail.com.
 
 ---
 
 **EasyTechDBManager** - Simplifying MongoDB database management for developers and businesses.
-

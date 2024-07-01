@@ -1,15 +1,23 @@
 import express from 'express';
-import { createCollection, dropCollection, dropDatabase, insertDocument, fetchDocuments, updateDocument, deleteDocument } from '../controllers/db.controller.js';
-import { validateApiKey } from '../middlewares/auth.middleware.js';
+import {
+  createDatabase,
+  createCollection,
+  dropCollection,
+  insertDocument,
+  fetchDocuments,
+  updateDocument,
+  deleteDocument,
+} from '../controllers/db.controller.js';
+import { dbConnectionMiddleware, closeDbConnectionMiddleware } from '../middlewares/db.middleware.js';
 
 const router = express.Router();
 
-router.post('/create-collection', validateApiKey, createCollection);
-router.post('/insert-document', validateApiKey, insertDocument);
-router.post('/fetch-documents', validateApiKey, fetchDocuments);
-router.post('/update-document', validateApiKey, updateDocument);
-router.post('/delete-document', validateApiKey, deleteDocument);
-router.post('/drop-collection', validateApiKey, dropCollection);
-router.post('/drop-database', validateApiKey, dropDatabase);
+router.post('/create-database', dbConnectionMiddleware, createDatabase, closeDbConnectionMiddleware);
+router.post('/create-collection', dbConnectionMiddleware, createCollection, closeDbConnectionMiddleware);
+router.post('/drop-collection', dbConnectionMiddleware, dropCollection, closeDbConnectionMiddleware);
+router.post('/insert-document', dbConnectionMiddleware, insertDocument, closeDbConnectionMiddleware);
+router.post('/fetch-documents', dbConnectionMiddleware, fetchDocuments, closeDbConnectionMiddleware);
+router.post('/update-document', dbConnectionMiddleware, updateDocument, closeDbConnectionMiddleware);
+router.post('/delete-document', dbConnectionMiddleware, deleteDocument, closeDbConnectionMiddleware);
 
 export default router;

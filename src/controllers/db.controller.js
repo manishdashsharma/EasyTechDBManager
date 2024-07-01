@@ -1,27 +1,23 @@
-import { connectToDbClient } from "../config/db.config.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import PayloadValidationServices from "../services/validation.services.js";
-import { databaseSchema,
-    userDataSchema,
-    dropDatabaseSchema,
-    dropCollectionSchema,
-    insertDocumentSchema,
-    fetchDocumentsSchema,
-    updateDocumentSchema,
-    deleteDocumentSchema, } from "../utils/payloadSchema.js";
+import {
+  databaseSchema,
+  dropCollectionSchema,
+  insertDocumentSchema,
+  fetchDocumentsSchema,
+  updateDocumentSchema,
+  deleteDocumentSchema,
+} from "../utils/payloadSchema.js";
 import User from "../models/auth.schema.js";
 
 const createDatabase = asyncHandler(async (req, res) => {
-  const { databaseName, mongodbURI, collectionName } = req.body;
+  const { databaseName, collectionName } = req.body;
 
-  const validatePayload = PayloadValidationServices.validateData(
-    databaseSchema,
-    {
-      databaseName,
-      mongodbURI,
-      collectionName,
-    }
-  );
+  const validatePayload = PayloadValidationServices.validateData(databaseSchema, {
+    databaseName,
+    mongodbURI: req.body.mongodbURI,
+    collectionName,
+  });
 
   if (!validatePayload.isValid) {
     return res.status(400).json({
@@ -31,11 +27,8 @@ const createDatabase = asyncHandler(async (req, res) => {
     });
   }
 
-  let client;
   try {
-    client = await connectToDbClient(mongodbURI);
     const user = req.user;
-
     if (user && !user.is_paid && user.dbCount >= 5) {
       return res.status(403).json({
         success: false,
@@ -43,12 +36,12 @@ const createDatabase = asyncHandler(async (req, res) => {
       });
     }
 
-    const adminDb = client.db().admin();
+    const adminDb = req.db.admin();
     const databases = await adminDb.listDatabases();
     const dbExists = databases.databases.some((db) => db.name === databaseName);
 
     if (dbExists) {
-      const db = client.db(databaseName);
+      const db = req.dbClient.db(databaseName);
       const collections = await db.listCollections().toArray();
       const collectionExists = collections.some(
         (collection) => collection.name === collectionName
@@ -94,7 +87,7 @@ const createDatabase = asyncHandler(async (req, res) => {
         });
       }
     } else {
-      const db = client.db(databaseName);
+      const db = req.dbClient.db(databaseName);
       await db.createCollection(collectionName);
       const collection = db.collection(collectionName);
       await collection.insertOne({
@@ -117,25 +110,17 @@ const createDatabase = asyncHandler(async (req, res) => {
       message: "An error occurred while creating the database or collection.",
       error: error.message,
     });
-  } finally {
-    if (client) {
-      await client.close();
-      console.log("Connection closed.");
-    }
   }
 });
 
 const createCollection = asyncHandler(async (req, res) => {
-  const { databaseName, mongodbURI, collectionName } = req.body;
+  const { databaseName, collectionName } = req.body;
 
-  const validatePayload = PayloadValidationServices.validateData(
-    databaseSchema,
-    {
-      databaseName,
-      mongodbURI,
-      collectionName,
-    }
-  );
+  const validatePayload = PayloadValidationServices.validateData(databaseSchema, {
+    databaseName,
+    mongodbURI: req.body.mongodbURI,
+    collectionName,
+  });
 
   if (!validatePayload.isValid) {
     return res.status(400).json({
@@ -145,11 +130,8 @@ const createCollection = asyncHandler(async (req, res) => {
     });
   }
 
-  let client;
   try {
-    client = await connectToDbClient(mongodbURI);
     const user = req.user;
-
     if (user && !user.is_paid && user.dbCount >= 5) {
       return res.status(403).json({
         success: false,
@@ -157,7 +139,7 @@ const createCollection = asyncHandler(async (req, res) => {
       });
     }
 
-    const db = client.db(databaseName);
+    const db = req.dbClient.db(databaseName);
     const collections = await db.listCollections().toArray();
     const collectionExists = collections.some(
       (collection) => collection.name === collectionName
@@ -186,25 +168,17 @@ const createCollection = asyncHandler(async (req, res) => {
       message: "An error occurred while creating the collection.",
       error: error.message,
     });
-  } finally {
-    if (client) {
-      await client.close();
-      console.log("Connection closed.");
-    }
   }
 });
 
 const dropCollection = asyncHandler(async (req, res) => {
-  const { databaseName, mongodbURI, collectionName } = req.body;
+  const { databaseName, collectionName } = req.body;
 
-  const validatePayload = PayloadValidationServices.validateData(
-    dropCollectionSchema,
-    {
-      databaseName,
-      mongodbURI,
-      collectionName,
-    }
-  );
+  const validatePayload = PayloadValidationServices.validateData(dropCollectionSchema, {
+    databaseName,
+    mongodbURI: req.body.mongodbURI,
+    collectionName,
+  });
 
   if (!validatePayload.isValid) {
     return res.status(400).json({
@@ -214,11 +188,8 @@ const dropCollection = asyncHandler(async (req, res) => {
     });
   }
 
-  let client;
   try {
-    client = await connectToDbClient(mongodbURI);
     const user = req.user;
-
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -226,7 +197,7 @@ const dropCollection = asyncHandler(async (req, res) => {
       });
     }
 
-    const db = client.db(databaseName);
+    const db = req.dbClient.db(databaseName);
 
     await db.dropCollection(collectionName);
     return res.status(200).json({
@@ -240,24 +211,18 @@ const dropCollection = asyncHandler(async (req, res) => {
       message: "An error occurred while dropping the collection.",
       error: error.message,
     });
-  } finally {
-    if (client) {
-      await client.close();
-      console.log("Connection closed.");
-    }
   }
 });
 
-const dropDatabase = asyncHandler(async (req, res) => {
-  const { databaseName, mongodbURI } = req.body;
+const insertDocument = asyncHandler(async (req, res) => {
+  const { databaseName, collectionName, document } = req.body;
 
-  const validatePayload = PayloadValidationServices.validateData(
-    dropDatabaseSchema,
-    {
-      databaseName,
-      mongodbURI,
-    }
-  );
+  const validatePayload = PayloadValidationServices.validateData(insertDocumentSchema, {
+    databaseName,
+    mongodbURI: req.body.mongodbURI,
+    collectionName,
+    document,
+  });
 
   if (!validatePayload.isValid) {
     return res.status(400).json({
@@ -267,237 +232,168 @@ const dropDatabase = asyncHandler(async (req, res) => {
     });
   }
 
-  let client;
   try {
-    client = await connectToDbClient(mongodbURI);
-    const user = req.user;
+    const db = req.dbClient.db(databaseName);
 
-    if (!user) {
-      return res.status(401).json({
+    const collections = await db.listCollections({ name: collectionName }).toArray();
+    const collectionExists = collections.length > 0;
+
+    if (!collectionExists) {
+      return res.status(404).json({
         success: false,
-        message: "Invalid API key.",
+        message: `Collection '${collectionName}' does not exist in database '${databaseName}'.`,
       });
     }
 
-    const db = client.db(databaseName);
+    const collection = db.collection(collectionName);
 
-    await db.dropDatabase();
-    return res.status(200).json({
+    if (document._id) {
+      document._id = new ObjectId(document._id);
+    }
+
+    const result = await collection.insertOne(document);
+
+    return res.status(201).json({
       success: true,
-      message: `Database '${databaseName}' dropped successfully.`,
+      message: "Document inserted successfully",
+      response: {
+        success: result.acknowledged,
+        insertedId: result.insertedId,
+      },
     });
   } catch (error) {
     console.error("An error occurred:", error);
     res.status(500).json({
       success: false,
-      message: "An error occurred while dropping the database.",
+      message: "An error occurred while inserting the document.",
       error: error.message,
     });
-  } finally {
-    if (client) {
-      await client.close();
-      console.log("Connection closed.");
-    }
   }
 });
 
-const insertDocument = asyncHandler(async (req, res) => {
-    const { databaseName, mongodbURI, collectionName, document } = req.body;
-
-    const validatePayload = PayloadValidationServices.validateData(
-        insertDocumentSchema,
-        {
-            databaseName,
-            mongodbURI,
-            collectionName,
-            document,
-        }
-    );
-
-    if (!validatePayload.isValid) {
-        return res.status(400).json({
-            success: false,
-            message: "Invalid payload",
-            errors: validatePayload.errors,
-        });
-    }
-
-    let client;
-    try {
-        // Reuse existing connection
-        client = await connectToDbClient(mongodbURI);
-        const db = client.db(databaseName);
-
-        // Check if the collection exists
-        const collections = await db.listCollections({ name: collectionName }).toArray();
-        const collectionExists = collections.length > 0;
-
-        if (!collectionExists) {
-            return res.status(404).json({
-                success: false,
-                message: `Collection '${collectionName}' does not exist in database '${databaseName}'.`,
-            });
-        }
-
-        const collection = db.collection(collectionName);
-
-        // Insert the document
-        const result = await collection.insertOne(document);
-        await client.close(); // Close connection after use
-
-        return res.status(201).json({
-            success: true,
-            message: "Document inserted successfully",
-            response: {
-                success: result.acknowledged,
-                insertedId: result.insertedId,
-            }
-        });
-
-    } catch (error) {
-        console.error("An error occurred:", error);
-        res.status(400).json({
-            success: false,
-            message: error.message,
-        });
-    } finally {
-        if (client) {
-            await client.close();
-        }
-    }
-});
-
-
 const fetchDocuments = asyncHandler(async (req, res) => {
-    const { databaseName, mongodbURI, collectionName, query = {}, limit = 10, offset = 0 } = req.body;
+  const { databaseName, collectionName, query = {}, limit = 10, offset = 0 } = req.body;
 
-    const validatePayload = PayloadValidationServices.validateData(
-        fetchDocumentsSchema,
-        {
-            databaseName,
-            mongodbURI,
-            collectionName,
-            query,
-            limit,
-            offset,
-        });
+  const validatePayload = PayloadValidationServices.validateData(fetchDocumentsSchema, {
+    databaseName,
+    mongodbURI: req.body.mongodbURI,
+    collectionName,
+    query,
+    limit,
+    offset,
+  });
 
-    if (!validatePayload.isValid) {
-        return res.status(400).json({
-            success: false,
-            message: "Invalid payload",
-            errors: validatePayload.errors,
-        });
-    }
+  if (!validatePayload.isValid) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid payload",
+      errors: validatePayload.errors,
+    });
+  }
 
-    let client;
-    try {
-        client = await connectToDbClient(mongodbURI);
-        const db = client.db(databaseName);
-        const collection = db.collection(collectionName);
+  try {
+    const db = req.dbClient.db(databaseName);
+    const collection = db.collection(collectionName);
 
-        const documents = await collection.find(query).skip(offset).limit(limit).toArray();
+    const documents = await collection.find(query).skip(offset).limit(limit).toArray();
 
-        return res.status(200).json({
-            success: true,
-            documents,
-        });
-
-    } catch (error) {
-        console.error("An error occurred:", error);
-        res.status(500).json({
-            success: false,
-            message: "An error occurred while fetching the documents.",
-            error: error.message,
-        });
-    } finally {
-        if (client) {
-            await client.close();
-            console.log("Connection closed.");
-        }
-    }
+    return res.status(200).json({
+      success: true,
+      documents,
+    });
+  } catch (error) {
+    console.error("An error occurred:", error);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching the documents.",
+      error: error.message,
+    });
+  }
 });
-
 
 const updateDocument = asyncHandler(async (req, res) => {
-    const { databaseName, mongodbURI, collectionName, filter, update } = req.body;
+  const { databaseName, collectionName, query, update } = req.body;
 
-    const validatePayload = PayloadValidationServices.validateData(
-        updateDocumentSchema,
-        {
-            databaseName,
-            mongodbURI,
-            collectionName,
-            filter,
-            update,
-        })
+  const validatePayload = PayloadValidationServices.validateData(updateDocumentSchema, {
+    databaseName,
+    mongodbURI: req.body.mongodbURI,
+    collectionName,
+    query,
+    update,
+  });
 
-    if (!validatePayload.isValid) {
-        return res.status(400).json({
-            success: false,
-            message: "Invalid payload",
-            errors: validatePayload.errors,
-        });
-    }
+  if (!validatePayload.isValid) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid payload",
+      errors: validatePayload.errors,
+    });
+  }
 
-    let client;
-    try {
-        client = await connectToDbClient(mongodbURI);
-        const db = client.db(databaseName);
-        const collection = db.collection(collectionName);
+  try {
+    const db = req.dbClient.db(databaseName);
+    const collection = db.collection(collectionName);
 
-        const result = await collection.updateOne(filter, { $set: update });
-        return res.status(200).json({
-            success: true,
-            message: "Document updated successfully",
-            result
-        });
+    const result = await collection.updateMany(query, { $set: update });
 
-    } catch (error) {
-        console.error("An error occurred:", error);
-        res.status(500).json({
-            success: false,
-            message: "An error occurred while updating the document.",
-            error: error.message
-        });
-    } finally {
-        if (client) {
-            await client.close();
-            console.log("Connection closed.");
-        }
-    }
+    return res.status(200).json({
+      success: true,
+      message: `${result.matchedCount} document(s) matched, ${result.modifiedCount} document(s) updated`,
+    });
+  } catch (error) {
+    console.error("An error occurred:", error);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while updating the documents.",
+      error: error.message,
+    });
+  }
 });
 
 const deleteDocument = asyncHandler(async (req, res) => {
-    const { databaseName, mongodbURI, collectionName, filter } = req.body;
+  const { databaseName, collectionName, query } = req.body;
 
-    let client;
-    try {
-        client = await connectToDbClient(mongodbURI);
-        const db = client.db(databaseName);
-        const collection = db.collection(collectionName);
+  const validatePayload = PayloadValidationServices.validateData(deleteDocumentSchema, {
+    databaseName,
+    mongodbURI: req.body.mongodbURI,
+    collectionName,
+    query,
+  });
 
-        const result = await collection.deleteOne(filter);
-        return res.status(200).json({
-            success: true,
-            message: "Document deleted successfully",
-            result
-        });
+  if (!validatePayload.isValid) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid payload",
+      errors: validatePayload.errors,
+    });
+  }
 
-    } catch (error) {
-        console.error("An error occurred:", error);
-        res.status(500).json({
-            success: false,
-            message: "An error occurred while deleting the document.",
-            error: error.message
-        });
-    } finally {
-        if (client) {
-            await client.close();
-            console.log("Connection closed.");
-        }
-    }
+  try {
+    const db = req.dbClient.db(databaseName);
+    const collection = db.collection(collectionName);
+
+    const result = await collection.deleteMany(query);
+
+    return res.status(200).json({
+      success: true,
+      message: `${result.deletedCount} document(s) deleted`,
+    });
+  } catch (error) {
+    console.error("An error occurred:", error);
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while deleting the documents.",
+      error: error.message,
+    });
+  }
 });
 
-
-export { createDatabase, createCollection, dropCollection, dropDatabase, insertDocument, fetchDocuments, updateDocument, deleteDocument  };
+export {
+  createDatabase,
+  createCollection,
+  dropCollection,
+  insertDocument,
+  fetchDocuments,
+  updateDocument,
+  deleteDocument,
+};
